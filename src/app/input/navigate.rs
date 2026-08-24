@@ -65,11 +65,13 @@ impl App {
             return;
         }
 
-        if self.state.is_prefix_key(&raw_key) {
+        if wants_literal_prefix(&self.state, &raw_key) {
             if self.state.copy_mode_pane_is_focused() {
                 self.state.cancel_copy_mode(&self.terminal_runtimes);
             }
-            if !self.pass_through_key_to_focused_pane(raw_key) {
+            // Always emit the prefix itself, not the key that asked for it.
+            let prefix_key = TerminalKey::new(self.state.prefix_code, self.state.prefix_mods);
+            if !self.pass_through_key_to_focused_pane(prefix_key) {
                 leave_command_mode(&mut self.state);
             }
             return;
@@ -1455,6 +1457,17 @@ pub(crate) enum NavigateAction {
     OpenNotificationTarget,
     Detach,
     OpenNavigator,
+}
+
+/// Whether this key, pressed in prefix mode, should send one literal prefix
+/// key to the focused pane.
+///
+/// Two ways in: press the prefix again, which always works, or the optional
+/// `keys.send_prefix` binding. The second exists because a chorded prefix such
+/// as `ctrl+a` is awkward to double-tap, and screen users arrive expecting the
+/// `prefix` then `a` form.
+fn wants_literal_prefix(state: &AppState, raw_key: &TerminalKey) -> bool {
+    state.is_prefix_key(raw_key) || state.keybinds.send_prefix.matches_prefix_key(raw_key)
 }
 
 fn copy_mode_survives_prefix_action(action: NavigateAction) -> bool {
@@ -2978,6 +2991,48 @@ last_pane = "prefix+tab"
         );
 
         assert_eq!(action, Some(NavigateAction::SwitchWorkspace(1)));
+    }
+
+    #[test]
+    fn send_prefix_binding_sends_a_literal_prefix_key() {
+        let mut state = state_with_workspaces(&["one"]);
+        let config: Config =
+            toml::from_str("[keys]\nprefix = \"ctrl+a\"\nsend_prefix = \"prefix+a\"\n").unwrap();
+        state.prefix_code = KeyCode::Char('a');
+        state.prefix_mods = KeyModifiers::CONTROL;
+        state.keybinds.send_prefix = config.keybinds().send_prefix;
+
+        // The screen-style form: prefix, then a bare `a`.
+        assert!(wants_literal_prefix(
+            &state,
+            &TerminalKey::new(KeyCode::Char('a'), KeyModifiers::empty())
+        ));
+        // The double-tap keeps working alongside it.
+        assert!(wants_literal_prefix(
+            &state,
+            &TerminalKey::new(KeyCode::Char('a'), KeyModifiers::CONTROL)
+        ));
+        // Anything else is still an ordinary prefix binding.
+        assert!(!wants_literal_prefix(
+            &state,
+            &TerminalKey::new(KeyCode::Char('b'), KeyModifiers::empty())
+        ));
+    }
+
+    #[test]
+    fn without_send_prefix_only_the_double_tap_sends_a_literal_prefix() {
+        let mut state = state_with_workspaces(&["one"]);
+        state.prefix_code = KeyCode::Char('a');
+        state.prefix_mods = KeyModifiers::CONTROL;
+
+        assert!(wants_literal_prefix(
+            &state,
+            &TerminalKey::new(KeyCode::Char('a'), KeyModifiers::CONTROL)
+        ));
+        assert!(!wants_literal_prefix(
+            &state,
+            &TerminalKey::new(KeyCode::Char('a'), KeyModifiers::empty())
+        ));
     }
 
     #[test]

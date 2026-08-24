@@ -1,9 +1,9 @@
-# trjh/herdr — tab status colors
+# trjh/herdr
 
-A single-feature fork of [herdrdev/herdr](https://github.com/herdrdev/herdr),
-branched from `v0.8.2`.
+A small fork of [herdrdev/herdr](https://github.com/herdrdev/herdr), tracking
+`master`. Two features, both config-gated and off by default.
 
-## What the patch adds
+## 1. `[ui] tab_status_colors`
 
 `[ui] tab_status_colors` (default `false`). When enabled, each tab cell in the
 desktop tab row takes the color of the agent state inside it, and the active
@@ -39,6 +39,22 @@ green  = "#22B450"   # idle
 Foreground is chosen by the luma of the fill, so labels stay legible in light
 and dark themes. An ANSI color that cannot be measured (the `terminal` theme)
 falls back to the contrast color the active tab already uses.
+
+## 2. `[keys] send_prefix`
+
+Upstream sends a literal prefix key to the pane only by pressing the prefix
+**twice**, and that is hardcoded — binding anything to the bare prefix key in
+prefix mode is explicitly reserved. A chorded prefix like `ctrl+a` is awkward
+to double-tap, and anyone arriving from GNU screen expects `Ctrl-A a`.
+
+```toml
+[keys]
+prefix = "ctrl+a"
+send_prefix = "prefix+a"   # optional; unset by default
+```
+
+The binding is additive — the double-tap keeps working — and it always emits
+the configured prefix key, not the key that triggered it.
 
 ## Why a fork and not a pull request
 
