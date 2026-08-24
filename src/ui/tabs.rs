@@ -1,13 +1,14 @@
 use ratatui::{
     layout::Rect,
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     widgets::Paragraph,
     Frame,
 };
 
+use super::status::state_label_color;
 use super::text::display_width_u16;
 use super::widgets::panel_contrast_fg;
-use crate::app::AppState;
+use crate::{app::state::Palette, app::AppState, detect::AgentState};
 
 const MIN_TAB_WIDTH: u16 = 8;
 const NEW_TAB_WIDTH: u16 = 3;
@@ -41,6 +42,46 @@ fn tab_chrome_label(ws: &crate::workspace::Workspace, tab_idx: usize) -> String 
         format!("{name} Z")
     } else {
         name
+    }
+}
+
+/// The fill color a tab cell should carry for the agent state inside it, or
+/// `None` when the tab holds no agent at all.
+///
+/// Every tab with a detected agent takes a color, seen-idle included. That
+/// makes the plain styling mean exactly one thing — "no agent here" — which is
+/// what separates a shell or editor tab from an agent that simply has nothing
+/// left to report.
+fn tab_status_fill(
+    app: &AppState,
+    ws: &crate::workspace::Workspace,
+    tab_idx: usize,
+    p: &Palette,
+) -> Option<Color> {
+    if !app.tab_status_colors {
+        return None;
+    }
+    let (state, seen) = ws.tabs.get(tab_idx)?.aggregate_state(&app.terminals);
+    match state {
+        AgentState::Unknown => None,
+        _ => Some(state_label_color(state, seen, p)),
+    }
+}
+
+/// Text color that stays legible on `fill`. Themes set state colors as RGB, so
+/// pick black or white by luma; anything else (a `terminal`-theme ANSI color we
+/// cannot measure) falls back to the same contrast color the active tab uses.
+fn readable_ink(fill: Color, p: &Palette) -> Color {
+    match fill {
+        Color::Rgb(r, g, b) => {
+            let luma = 0.299 * f32::from(r) + 0.587 * f32::from(g) + 0.114 * f32::from(b);
+            if luma > 140.0 {
+                Color::Black
+            } else {
+                Color::White
+            }
+        }
+        _ => panel_contrast_fg(p),
     }
 }
 
@@ -390,7 +431,19 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
             continue;
         }
         let active = idx == ws.active_tab;
-        let style = if active {
+        let style = if let Some(fill) = tab_status_fill(app, ws, idx, p) {
+            // Same grammar as the plain tabs: an inactive cell is filled, and
+            // the active one is that cell inverted.
+            let ink = readable_ink(fill, p);
+            if active {
+                Style::default()
+                    .fg(fill)
+                    .bg(ink)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(ink).bg(fill)
+            }
+        } else if active {
             let base = Style::default().fg(panel_contrast_fg(p)).bg(p.accent);
             if tab.is_auto_named() {
                 base
@@ -742,6 +795,154 @@ mod tests {
         assert_eq!(style.bg, Some(app.palette.accent));
         assert!(!style.add_modifier.contains(Modifier::DIM));
         assert!(!style.add_modifier.contains(Modifier::BOLD));
+    }
+
+    /// Put the workspace's single tab into `state`/`seen` and render the strip,
+    /// returning the style of a cell inside the first tab.
+    fn render_single_tab_style(
+        state: crate::detect::AgentState,
+        seen: bool,
+        tab_status_colors: bool,
+    ) -> ratatui::style::Style {
+        let mut app = AppState::test_new();
+        let mut ws = Workspace::test_new("test");
+        ws.tabs[0].set_custom_name("agent".into());
+        app.workspaces = vec![ws];
+        app.active = Some(0);
+        app.tab_status_colors = tab_status_colors;
+        app.ensure_test_terminals();
+
+        let pane_ids: Vec<_> = app.workspaces[0].tabs[0].panes.keys().copied().collect();
+        for pane_id in pane_ids {
+            let terminal_id = {
+                let pane = app.workspaces[0].tabs[0].panes.get_mut(&pane_id).unwrap();
+                pane.seen = seen;
+                pane.attached_terminal_id.clone()
+            };
+            app.terminals.get_mut(&terminal_id).unwrap().state = state;
+        }
+
+        app.view.tab_bar_rect = Rect::new(0, 0, 30, 1);
+        let view = compute_tab_bar_view(&app.workspaces[0], app.view.tab_bar_rect, 0, true, false);
+        app.view.tab_hit_areas = view.tab_hit_areas;
+
+        let backend = TestBackend::new(30, 1);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| render_tab_bar(&app, frame, app.view.tab_bar_rect))
+            .unwrap();
+
+        let rect = app.view.tab_hit_areas[0];
+        terminal.backend().buffer()[(rect.x + 1, rect.y)].style()
+    }
+
+    #[test]
+    fn tab_status_colors_are_off_by_default() {
+        let palette = AppState::test_new().palette;
+        let style = render_single_tab_style(crate::detect::AgentState::Blocked, true, false);
+
+        // The active tab keeps its ordinary accent fill until the option is on.
+        assert_eq!(style.bg, Some(palette.accent));
+    }
+
+    #[test]
+    fn inactive_tab_takes_the_fill_of_the_agent_state_inside_it() {
+        let palette = AppState::test_new().palette;
+        let mut app = AppState::test_new();
+        let mut ws = Workspace::test_new("test");
+        ws.tabs[0].set_custom_name("first".into());
+        let second = ws.test_add_tab(Some("second"));
+        ws.active_tab = second;
+        app.workspaces = vec![ws];
+        app.active = Some(0);
+        app.tab_status_colors = true;
+        app.ensure_test_terminals();
+
+        let pane_ids: Vec<_> = app.workspaces[0].tabs[0].panes.keys().copied().collect();
+        for pane_id in pane_ids {
+            let terminal_id = app.workspaces[0].tabs[0].panes[&pane_id]
+                .attached_terminal_id
+                .clone();
+            app.terminals.get_mut(&terminal_id).unwrap().state = crate::detect::AgentState::Blocked;
+        }
+
+        app.view.tab_bar_rect = Rect::new(0, 0, 40, 1);
+        let view = compute_tab_bar_view(&app.workspaces[0], app.view.tab_bar_rect, 0, true, false);
+        app.view.tab_hit_areas = view.tab_hit_areas;
+
+        let backend = TestBackend::new(40, 1);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| render_tab_bar(&app, frame, app.view.tab_bar_rect))
+            .unwrap();
+
+        let rect = app.view.tab_hit_areas[0];
+        let style = terminal.backend().buffer()[(rect.x + 1, rect.y)].style();
+
+        assert_eq!(style.bg, Some(palette.red));
+        assert_eq!(style.fg, Some(readable_ink(palette.red, &palette)));
+    }
+
+    #[test]
+    fn active_tab_inverts_its_own_status_fill() {
+        let palette = AppState::test_new().palette;
+        let style = render_single_tab_style(crate::detect::AgentState::Blocked, true, true);
+
+        // Same pair as the inactive cell, swapped — the grammar the plain tabs
+        // already use to mark the active one.
+        assert_eq!(style.fg, Some(palette.red));
+        assert_eq!(style.bg, Some(readable_ink(palette.red, &palette)));
+        assert!(style.add_modifier.contains(Modifier::BOLD));
+    }
+
+    #[test]
+    fn working_and_done_states_each_get_their_own_fill() {
+        let palette = AppState::test_new().palette;
+
+        let working = render_single_tab_style(crate::detect::AgentState::Working, true, true);
+        assert_eq!(working.fg, Some(palette.yellow));
+
+        // Idle-but-unseen is herdr's "done" — it still has something to report.
+        let done = render_single_tab_style(crate::detect::AgentState::Idle, false, true);
+        assert_eq!(done.fg, Some(palette.teal));
+    }
+
+    #[test]
+    fn a_seen_idle_agent_still_colors_its_tab() {
+        let palette = AppState::test_new().palette;
+        let style = render_single_tab_style(crate::detect::AgentState::Idle, true, true);
+
+        // Idle is still an agent, so it keeps a fill. Only agentless tabs go
+        // plain — that is the distinction the colors are carrying.
+        assert_eq!(style.fg, Some(palette.green));
+    }
+
+    #[test]
+    fn agentless_tabs_keep_the_plain_styling() {
+        let palette = AppState::test_new().palette;
+        let style = render_single_tab_style(crate::detect::AgentState::Unknown, true, true);
+
+        assert_eq!(style.bg, Some(palette.accent));
+    }
+
+    #[test]
+    fn readable_ink_follows_the_luma_of_its_fill() {
+        let palette = AppState::test_new().palette;
+
+        assert_eq!(
+            readable_ink(ratatui::style::Color::Rgb(250, 220, 180), &palette),
+            ratatui::style::Color::Black
+        );
+        assert_eq!(
+            readable_ink(ratatui::style::Color::Rgb(20, 40, 90), &palette),
+            ratatui::style::Color::White
+        );
+        // Un-measurable ANSI colors (the `terminal` theme) fall back rather
+        // than guessing.
+        assert_eq!(
+            readable_ink(ratatui::style::Color::Blue, &palette),
+            panel_contrast_fg(&palette)
+        );
     }
 
     #[test]

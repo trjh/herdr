@@ -344,6 +344,13 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # Show detected/reported agent labels in split pane borders when no manual pane name is set.
 # show_agent_labels_on_pane_borders = false
 
+# Paint each desktop tab cell with the agent state of the panes inside it,
+# using the same semantic colors the sidebar already uses (blocked, working,
+# done, idle). Only tabs holding no agent keep the plain tab styling, so the
+# plain look means "not an agent tab"; the active tab stays the inverse of
+# however its own cell would look inactive.
+# tab_status_colors = false
+
 # Hide the tab row when a workspace has exactly one tab.
 # New tabs can still be created with the configured keybinding.
 # hide_tab_bar_when_single_tab = false

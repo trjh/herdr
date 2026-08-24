@@ -70,6 +70,25 @@ impl Tab {
             })
             .collect()
     }
+
+    /// Roll this tab's panes up to the one agent state worth showing on the tab
+    /// itself, using the same attention ordering the sidebar and the
+    /// `tab list` API already agree on. Tabs with no agent-bearing pane report
+    /// `(Unknown, true)`, which callers treat as "no agent here".
+    pub fn aggregate_state(
+        &self,
+        terminals: &HashMap<TerminalId, TerminalState>,
+    ) -> (AgentState, bool) {
+        self.panes
+            .values()
+            .filter_map(|pane| {
+                terminals
+                    .get(&pane.attached_terminal_id)
+                    .map(|terminal| (terminal.state, pane.seen))
+            })
+            .max_by_key(|(state, seen)| pane_attention_priority(*state, *seen))
+            .unwrap_or((AgentState::Unknown, true))
+    }
 }
 
 fn pane_attention_priority(state: AgentState, seen: bool) -> u8 {
