@@ -1346,7 +1346,17 @@ impl TerminalState {
     fn session_start_source_is_recognized(session_start_source: Option<&str>) -> bool {
         matches!(
             session_start_source,
-            Some("startup" | "clear" | "resume" | "compact" | "new" | "fork" | "select")
+            Some(
+                "startup"
+                    | "clear"
+                    | "resume"
+                    | "compact"
+                    | "new"
+                    | "fork"
+                    | "select"
+                    | "reload"
+                    | "branch"
+            )
         )
     }
 

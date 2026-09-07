@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+- Full-lifecycle hook sources (e.g. `herdr:pi`) now re-anchor the agent session on a pi `/reload`, not only on `startup`/`new`/`resume`. `reload` is now a recognized `session_start_source` (and `branch`, which `normalize_session_start_source` already accepted, is now recognized too), so a `/reload` no longer leaves later `pane.report_agent` calls ignored for lack of an anchored session.
+
 ## [0.8.2] - 2026-08-19
 
 ### Added
