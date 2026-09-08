@@ -675,3 +675,80 @@ fn every_configured_prefix_enters_prefix_mode() {
         assert_eq!(state.mode, ClientShellMode::Terminal);
     }
 }
+
+#[test]
+fn send_prefix_binding_emits_the_configured_prefix_key_to_the_focused_pane() {
+    let config: Config =
+        toml::from_str("[keys]\nprefix = \"ctrl+a\"\nsend_prefix = \"prefix+a\"\n").unwrap();
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(snapshot()));
+
+    let mut outcome = ClientShellInput::default();
+    state.record_binding(
+        crate::input::KeybindMatch::Action(crate::input::KeybindAction::SendPrefix),
+        &mut outcome,
+    );
+
+    let [ClientMessage::ClientShellPaneInput { pane_id, events }] = &outcome.requests[..] else {
+        panic!(
+            "expected one targeted pane input, got {:?}",
+            outcome.requests
+        );
+    };
+    assert_eq!(pane_id, "pane_1");
+    // Always emits the configured prefix key (ctrl+a), not the key that asked for it.
+    assert!(matches!(
+        &events[..],
+        [ClientPaneInputEvent::Key {
+            code: crate::protocol::ClientKeyCode::Char('a'),
+            modifiers,
+            kind: crate::protocol::ClientKeyKind::Press,
+            ..
+        }] if *modifiers == KeyModifiers::CONTROL.bits()
+    ));
+}
+
+#[test]
+fn send_prefix_without_a_focused_pane_drops_silently() {
+    let config: Config =
+        toml::from_str("[keys]\nprefix = \"ctrl+a\"\nsend_prefix = \"prefix+a\"\n").unwrap();
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    // No snapshot: no focused pane.
+    let mut outcome = ClientShellInput::default();
+    state.record_binding(
+        crate::input::KeybindMatch::Action(crate::input::KeybindAction::SendPrefix),
+        &mut outcome,
+    );
+    assert!(outcome.requests.is_empty());
+}
+
+#[test]
+fn send_prefix_with_several_prefixes_emits_the_first_one() {
+    let config: Config = toml::from_str(
+        "[keys]\nprefix = [\"ctrl+a\", \"ctrl+space\"]\nsend_prefix = \"prefix+a\"\n",
+    )
+    .unwrap();
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(snapshot()));
+
+    let mut outcome = ClientShellInput::default();
+    state.record_binding(
+        crate::input::KeybindMatch::Action(crate::input::KeybindAction::SendPrefix),
+        &mut outcome,
+    );
+
+    let [ClientMessage::ClientShellPaneInput { events, .. }] = &outcome.requests[..] else {
+        panic!(
+            "expected one targeted pane input, got {:?}",
+            outcome.requests
+        );
+    };
+    assert!(matches!(
+        &events[..],
+        [ClientPaneInputEvent::Key {
+            code: crate::protocol::ClientKeyCode::Char('a'),
+            modifiers,
+            ..
+        }] if *modifiers == KeyModifiers::CONTROL.bits()
+    ));
+}
