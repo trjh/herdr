@@ -980,6 +980,11 @@ pub struct UiConfig {
     pub pane_gaps: bool,
     /// Show agent labels in split pane borders when no manual pane label is set. Default: false.
     pub show_agent_labels_on_pane_borders: bool,
+    /// Paint each tab cell with the semantic color of the agent state inside it, so a tab
+    /// holding a blocked or finished agent is visible at a glance. The active tab is that
+    /// fill inverted, matching the grammar the plain tabs already use. Tabs with no detected
+    /// agent keep their ordinary styling. Default: false.
+    pub tab_status_colors: bool,
     /// Hide the tab row when the workspace has one tab. Default: false.
     pub hide_tab_bar_when_single_tab: bool,
     /// Desktop tab row placement. Default: top.
@@ -1215,6 +1220,7 @@ impl Default for UiConfig {
             pane_scrollbars: true,
             pane_gaps: true,
             show_agent_labels_on_pane_borders: false,
+            tab_status_colors: false,
             hide_tab_bar_when_single_tab: false,
             tab_bar_position: TabBarPositionConfig::Top,
             tab_bar_right: Vec::new(),

@@ -1,4 +1,5 @@
 use super::*;
+use ratatui::style::Color;
 
 const TAB_SCROLL_BUTTON_WIDTH: u16 = 3;
 const MIN_TAB_STRIP_WIDTH: u16 =
@@ -100,7 +101,19 @@ pub(crate) fn render_tab_bar(
             break;
         }
         let rect = Rect::new(x, area.y, width, 1);
-        let style = if tab.focused {
+        let style = if config.tab_status_colors
+            && tab.agent_status != crate::api::schema::AgentStatus::Unknown
+        {
+            // Same grammar as the plain tabs: an inactive cell is filled with the
+            // agent's semantic state color, and the active one is that cell inverted.
+            let fill = super::status_color(tab.agent_status, palette);
+            let ink = readable_ink(fill, palette);
+            if tab.focused {
+                Style::default().fg(fill).bg(ink).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(ink).bg(fill)
+            }
+        } else if tab.focused {
             let base = Style::default()
                 .fg(panel_contrast_fg(palette))
                 .bg(palette.accent);
@@ -376,6 +389,23 @@ fn tab_label(tab: &ClientShellTab) -> String {
         format!("{} Z", tab.label)
     } else {
         tab.label.clone()
+    }
+}
+
+/// Text color that stays legible on `fill`. Themes set state colors as RGB, so pick
+/// black or white by luma; anything else (a `terminal`-theme ANSI color we cannot measure)
+/// falls back to the contrast color the active tab already uses.
+fn readable_ink(fill: Color, palette: &crate::app::state::Palette) -> Color {
+    match fill {
+        Color::Rgb(r, g, b) => {
+            let luma = 0.299 * f32::from(r) + 0.587 * f32::from(g) + 0.114 * f32::from(b);
+            if luma > 140.0 {
+                Color::Black
+            } else {
+                Color::White
+            }
+        }
+        _ => panel_contrast_fg(palette),
     }
 }
 
