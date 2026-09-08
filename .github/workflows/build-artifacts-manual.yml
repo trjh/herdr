@@ -132,11 +132,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # FORK DIVERGENCE (trjh): pinned off macos-latest.
+          # macos-latest is the macos-26 image, whose SDK ships a
+          # libSystem.B.tbd listing arm64e-macos but not plain arm64-macos.
+          # The CI zig (official 0.15.2 via mlugg/setup-zig) targets
+          # aarch64-macos, so it resolves none of libc and the build runner
+          # itself fails to link with dozens of
+          # "undefined symbol: _fork / _getenv / _dispatch_semaphore_signal".
+          # The macos-15 images still carry the arm64-macos slice.
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-15-intel
             name: herdr-macos-x86_64
           - target: aarch64-apple-darwin
-            os: macos-latest
+            os: macos-15
             name: herdr-macos-aarch64
     env:
       LIBGHOSTTY_VT_OPTIMIZE: ${{ inputs.libghostty_optimize }}
