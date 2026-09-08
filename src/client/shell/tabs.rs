@@ -109,7 +109,10 @@ pub(crate) fn render_tab_bar(
             let fill = super::status_color(tab.agent_status, palette);
             let ink = readable_ink(fill, palette);
             if tab.focused {
-                Style::default().fg(fill).bg(ink).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(fill)
+                    .bg(ink)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(ink).bg(fill)
             }

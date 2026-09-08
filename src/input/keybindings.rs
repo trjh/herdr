@@ -64,6 +64,7 @@ pub(crate) enum KeybindAction {
     CyclePaneNext,
     CyclePanePrevious,
     LastPane,
+    SendPrefix,
     Help,
     Settings,
     ReloadConfig,
@@ -132,6 +133,7 @@ pub(crate) fn resolve_non_indexed_action(
         (&keybinds.swap_pane_up, KeybindAction::SwapPaneUp),
         (&keybinds.swap_pane_right, KeybindAction::SwapPaneRight),
         (&keybinds.last_pane, KeybindAction::LastPane),
+        (&keybinds.send_prefix, KeybindAction::SendPrefix),
         (&keybinds.cycle_pane_next, KeybindAction::CyclePaneNext),
         (
             &keybinds.cycle_pane_previous,
@@ -330,5 +332,33 @@ mod tests {
             resolve_prefix_binding(&keybinds, &key),
             Some(KeybindMatch::Action(KeybindAction::Help))
         ));
+    }
+
+    #[test]
+    fn send_prefix_resolves_only_for_its_binding_in_prefix_mode() {
+        let keybinds = Keybinds {
+            send_prefix: crate::config::ActionKeybinds::prefix("a"),
+            ..Keybinds::default()
+        };
+
+        let bound = TerminalKey::new(KeyCode::Char('a'), KeyModifiers::empty());
+        assert!(matches!(
+            resolve_prefix_binding(&keybinds, &bound),
+            Some(KeybindMatch::Action(KeybindAction::SendPrefix))
+        ));
+
+        // An unrelated key does not resolve to SendPrefix.
+        let other = TerminalKey::new(KeyCode::Char('b'), KeyModifiers::empty());
+        assert_ne!(
+            resolve_non_indexed_action(&keybinds, &other, KeybindDispatch::Prefix),
+            Some(KeybindAction::SendPrefix)
+        );
+    }
+
+    #[test]
+    fn send_prefix_is_unset_by_default() {
+        let keybinds = Keybinds::default();
+        let a = TerminalKey::new(KeyCode::Char('a'), KeyModifiers::empty());
+        assert!(resolve_non_indexed_action(&keybinds, &a, KeybindDispatch::Prefix).is_none());
     }
 }
