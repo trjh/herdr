@@ -98,6 +98,8 @@ pub(crate) struct ClientShellConfig {
     pub(super) prompt_new_workspace_name: bool,
     pub(super) confirm_close: bool,
     pub(super) mouse_capture: bool,
+    /// Paint each tab cell with its agent's semantic state color. Mirrors `[ui] tab_status_colors`.
+    pub(super) tab_status_colors: bool,
     pub(super) mouse_scroll_lines: usize,
     pub(super) right_click_passthrough_modifiers: Option<crossterm::event::KeyModifiers>,
     pub(super) redraw_on_focus_gained: bool,
