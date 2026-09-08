@@ -359,6 +359,7 @@ pub struct Keybinds {
     pub cycle_pane_next: ActionKeybinds,
     pub cycle_pane_previous: ActionKeybinds,
     pub last_pane: ActionKeybinds,
+    pub send_prefix: ActionKeybinds,
     pub split_vertical: ActionKeybinds,
     pub split_horizontal: ActionKeybinds,
     pub close_pane: ActionKeybinds,
@@ -527,6 +528,7 @@ impl Config {
             cycle_pane_next: empty_action!(),
             cycle_pane_previous: empty_action!(),
             last_pane: empty_action!(),
+            send_prefix: empty_action!(),
             split_vertical: empty_action!(),
             split_horizontal: empty_action!(),
             close_pane: empty_action!(),
@@ -672,6 +674,7 @@ impl Config {
             apply_action!(keybinds.swap_pane_up, swap_pane_up, source);
             apply_action!(keybinds.swap_pane_right, swap_pane_right, source);
             apply_action!(keybinds.last_pane, last_pane, source);
+            apply_action!(keybinds.send_prefix, send_prefix, source);
             apply_action!(keybinds.cycle_pane_next, cycle_pane_next, source);
             apply_action!(keybinds.cycle_pane_previous, cycle_pane_previous, source);
             apply_action!(keybinds.split_vertical, split_vertical, source);

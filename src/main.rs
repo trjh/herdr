@@ -178,6 +178,10 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # cycle_pane_next = "prefix+tab"
 # cycle_pane_previous = "prefix+shift+tab"
 # last_pane = ""          # optional, unset by default; bind e.g. "prefix+tab" for global back-and-forth
+# Send ONE literal prefix key to the focused pane. Pressing the prefix twice
+# always does this; bind this as well when the prefix is awkward to double-tap
+# (screen users coming from `Ctrl-A a`). Optional, unset by default.
+# send_prefix = ""        # e.g. "prefix+a" for a ctrl+a prefix
 # split_vertical = "prefix+v"
 # split_horizontal = "prefix+minus"
 # close_pane = "prefix+x"

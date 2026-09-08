@@ -19,6 +19,26 @@ impl ClientShellState {
                 self.persist_chrome_preferences(outcome);
             }
             crate::input::KeybindMatch::Action(action) => {
+                if action == crate::input::KeybindAction::SendPrefix {
+                    // Send one literal prefix key to the focused pane, like pressing the
+                    // prefix twice does, but from an optional binding so a chorded prefix
+                    // such as ctrl+a can be sent as `prefix` then `a` instead of a double-tap.
+                    // Always emit the configured prefix key, not the key that triggered it.
+                    if let Some(pane_id) = self.focused_pane_id() {
+                        let (code, modifiers) = self.config.keybinds.prefix;
+                        let prefix_key = crate::input::TerminalKey::new(code, modifiers);
+                        if let Some(event) =
+                            crate::protocol::ClientPaneInputEvent::from_terminal_key(prefix_key)
+                        {
+                            super::push_target_event(
+                                ClientInputTarget::Pane(pane_id),
+                                event,
+                                outcome,
+                            );
+                        }
+                    }
+                    return;
+                }
                 if matches!(
                     action,
                     crate::input::KeybindAction::NewWorktree
