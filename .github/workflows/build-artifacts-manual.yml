@@ -123,7 +123,10 @@ jobs:
           path: |
             ${{ matrix.name }}
             BUILD_INFO.txt
-          retention-days: 7
+          # FORK DIVERGENCE (trjh): upstream keeps 7 days. herdr/herdr.pin in dotfiles
+          # points at these artifacts and herdr-sync downloads them, so keep the
+          # repo maximum (90) to give each pin a usable life.
+          retention-days: 90
 
   build-macos:
     if: ${{ inputs.build_group == 'macos' || inputs.build_group == 'all' }}
@@ -195,7 +198,10 @@ jobs:
           path: |
             ${{ matrix.name }}
             BUILD_INFO.txt
-          retention-days: 7
+          # FORK DIVERGENCE (trjh): upstream keeps 7 days. herdr/herdr.pin in dotfiles
+          # points at these artifacts and herdr-sync downloads them, so keep the
+          # repo maximum (90) to give each pin a usable life.
+          retention-days: 90
 
   build-windows:
     if: ${{ inputs.build_group == 'windows' || inputs.build_group == 'all' }}
@@ -255,4 +261,7 @@ jobs:
           path: |
             herdr-windows-x86_64.zip
             BUILD_INFO.txt
-          retention-days: 7
+          # FORK DIVERGENCE (trjh): upstream keeps 7 days. herdr/herdr.pin in dotfiles
+          # points at these artifacts and herdr-sync downloads them, so keep the
+          # repo maximum (90) to give each pin a usable life.
+          retention-days: 90
