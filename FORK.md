@@ -69,13 +69,13 @@ So: this lives here, and upstream interest belongs in a Discussion, not a PR.
 
 ## Building on macOS
 
-`vendor/libghostty-vt` requires zig **0.15.2** exactly (`flake.nix` pins
-`zig_0_15`). Homebrew's default `zig` is 0.16, which the build rejects. Use
-the versioned formula instead:
+`vendor/libghostty-vt` requires zig **0.16.0** exactly since the v0.9.3 base (0.15.2 before that).
+Homebrew's unversioned `zig` moves ahead (0.17 now), which the build rejects, so
+use the versioned formula:
 
 ```bash
-brew install zig@0.15
-ZIG=/opt/homebrew/opt/zig@0.15/bin/zig cargo build --release
+brew install zig@0.16
+ZIG=/opt/homebrew/opt/zig@0.16/bin/zig cargo build --release
 ```
 
 That is all that is needed on a current macOS 26 install. Install alongside
@@ -107,7 +107,7 @@ done
 exec /usr/bin/xcrun "$@"
 SH
 chmod +x /tmp/shim/xcrun
-PATH=/tmp/shim:$PATH ZIG=/opt/homebrew/opt/zig@0.15/bin/zig cargo build --release
+PATH=/tmp/shim:$PATH ZIG=/opt/homebrew/opt/zig@0.16/bin/zig cargo build --release
 ```
 </details>
 
@@ -132,6 +132,6 @@ find vendor/libghostty-vt ~/.cache/zig/p -name build.zig.zon \
 ## Tests
 
 ```bash
-ZIG=/opt/homebrew/opt/zig@0.15/bin/zig cargo test --bin herdr client::shell
-ZIG=/opt/homebrew/opt/zig@0.15/bin/zig cargo test --bin herdr send_prefix
+ZIG=/opt/homebrew/opt/zig@0.16/bin/zig cargo test --bin herdr client::shell
+ZIG=/opt/homebrew/opt/zig@0.16/bin/zig cargo test --bin herdr send_prefix
 ```
